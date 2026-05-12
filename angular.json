@@ -29,6 +29,16 @@
           "options": {
             "tsConfig": "projects/ngx-mat-table-exporter/tsconfig.spec.json"
           }
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": [
+              "projects/ngx-mat-table-exporter/**/*.ts",
+              "projects/ngx-mat-table-exporter/**/*.html"
+            ],
+            "eslintConfig": "projects/ngx-mat-table-exporter/eslint.config.js"
+          }
         }
       }
     },
@@ -95,6 +105,13 @@
         },
         "test": {
           "builder": "@angular/build:unit-test"
+        },
+        "lint": {
+          "builder": "@angular-eslint/builder:lint",
+          "options": {
+            "lintFilePatterns": ["projects/demo/**/*.ts", "projects/demo/**/*.html"],
+            "eslintConfig": "projects/demo/eslint.config.js"
+          }
         }
       }
     }

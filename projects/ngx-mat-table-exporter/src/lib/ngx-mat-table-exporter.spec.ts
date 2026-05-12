@@ -178,6 +178,63 @@ describe('NgxMatTableExporterDirective — exportDataSource', () => {
 });
 
 // ---------------------------------------------------------------------------
+// download() format routing
+// ---------------------------------------------------------------------------
+
+describe('NgxMatTableExporterDirective — download format routing', () => {
+  let fixture: ComponentFixture<DomHostComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({ imports: [DomHostComponent] }).compileComponents();
+    fixture = TestBed.createComponent(DomHostComponent);
+    fixture.detectChanges();
+  });
+
+  function triggerDownload(format: 'xlsx' | 'csv' | 'json'): HTMLAnchorElement {
+    const dir = getDir(fixture) as any;
+    const anchor = document.createElement('a');
+    vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor as any);
+    vi.spyOn(document.body, 'appendChild').mockReturnValueOnce(anchor);
+    vi.spyOn(document.body, 'removeChild').mockReturnValueOnce(anchor);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(anchor, 'click').mockImplementation(() => {});
+    dir.exportCurrentPage({ format, fileName: 'test' });
+    return anchor;
+  }
+
+  afterEach(() => vi.restoreAllMocks());
+
+  it('sets .xlsx extension and correct MIME type for xlsx format', () => {
+    const anchor = triggerDownload('xlsx');
+    expect(anchor.download).toBe('test.xlsx');
+  });
+
+  it('sets .csv extension for csv format', () => {
+    const anchor = triggerDownload('csv');
+    expect(anchor.download).toBe('test.csv');
+  });
+
+  it('sets .json extension for json format', () => {
+    const anchor = triggerDownload('json');
+    expect(anchor.download).toBe('test.json');
+  });
+
+  it('defaults to xlsx when format is omitted', () => {
+    const dir = getDir(fixture) as any;
+    const anchor = document.createElement('a');
+    vi.spyOn(document, 'createElement').mockReturnValueOnce(anchor as any);
+    vi.spyOn(document.body, 'appendChild').mockReturnValueOnce(anchor);
+    vi.spyOn(document.body, 'removeChild').mockReturnValueOnce(anchor);
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+    vi.spyOn(anchor, 'click').mockImplementation(() => {});
+    dir.exportCurrentPage({ fileName: 'test' });
+    expect(anchor.download).toBe('test.xlsx');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // createXlsxBlob
 // ---------------------------------------------------------------------------
 

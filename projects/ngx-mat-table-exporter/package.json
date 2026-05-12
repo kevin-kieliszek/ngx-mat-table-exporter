@@ -1,6 +1,30 @@
 {
   "name": "ngx-mat-table-exporter",
   "version": "0.0.1",
+  "description": "Export Angular Material tables to Excel (.xlsx), CSV, or JSON with a single directive.",
+  "keywords": [
+    "angular",
+    "angular-material",
+    "mat-table",
+    "angular-material-table",
+    "material-table",
+    "export",
+    "table-export",
+    "excel",
+    "xlsx",
+    "csv",
+    "json",
+    "table",
+    "download",
+    "exporter"
+  ],
+  "author": "kevin-kieliszek",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kevin-kieliszek/ngx-mat-table-exporter.git"
+  },
+  "homepage": "https://kevin-kieliszek.github.io/ngx-mat-table-exporter/",
   "peerDependencies": {
     "@angular/common": ">=19.0.0",
     "@angular/core": ">=19.0.0",

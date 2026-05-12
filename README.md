@@ -1,5 +1,7 @@
 # ngx-mat-table-exporter
 
+**[Live Demo](https://kevin-kieliszek.github.io/ngx-mat-table-exporter/)**
+
 Export Angular Material tables to **Excel (.xlsx)**, **CSV**, or **JSON** with a single method call — no third-party libraries required.
 
 - Supports **Angular 19 and above**

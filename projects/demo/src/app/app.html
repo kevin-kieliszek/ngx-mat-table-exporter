@@ -1,0 +1,49 @@
+<h1>ngx-mat-table-exporter Demo</h1>
+
+<mat-form-field>
+  <mat-label>Filter</mat-label>
+  <input matInput (input)="applyFilter($event)" placeholder="e.g. Chicago">
+</mat-form-field>
+
+<div class="actions">
+  <div class="action-group">
+    <span class="action-label">Current page</span>
+    <button mat-raised-button (click)="exporter.exportCurrentPage({ format: 'xlsx' })">Excel</button>
+    <button mat-raised-button (click)="exporter.exportCurrentPage({ format: 'csv' })">CSV</button>
+    <button mat-raised-button (click)="exporter.exportCurrentPage({ format: 'json' })">JSON</button>
+  </div>
+  <div class="action-group">
+    <span class="action-label">All rows</span>
+    <button mat-raised-button color="primary" (click)="exporter.exportDataSource({ format: 'xlsx', fileName: 'all-users' })">Excel</button>
+    <button mat-raised-button color="primary" (click)="exporter.exportDataSource({ format: 'csv',  fileName: 'all-users' })">CSV</button>
+    <button mat-raised-button color="primary" (click)="exporter.exportDataSource({ format: 'json', fileName: 'all-users' })">JSON</button>
+  </div>
+</div>
+
+<mat-table [dataSource]="dataSource" matSort ngxMatTableExporter #exporter="ngxMatTableExporter">
+
+  <ng-container matColumnDef="name">
+    <mat-header-cell *matHeaderCellDef mat-sort-header>Name</mat-header-cell>
+    <mat-cell *matCellDef="let row">{{ row.name }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="email">
+    <mat-header-cell *matHeaderCellDef mat-sort-header>Email</mat-header-cell>
+    <mat-cell *matCellDef="let row">{{ row.email }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="age">
+    <mat-header-cell *matHeaderCellDef mat-sort-header>Age</mat-header-cell>
+    <mat-cell *matCellDef="let row">{{ row.age }}</mat-cell>
+  </ng-container>
+
+  <ng-container matColumnDef="city">
+    <mat-header-cell *matHeaderCellDef mat-sort-header>City</mat-header-cell>
+    <mat-cell *matCellDef="let row">{{ row.city }}</mat-cell>
+  </ng-container>
+
+  <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
+  <mat-row *matRowDef="let row; columns: displayedColumns"></mat-row>
+</mat-table>
+
+<mat-paginator [pageSizeOptions]="[5, 10]"></mat-paginator>

@@ -11,7 +11,7 @@ module.exports = defineConfig([
         'error',
         {
           type: 'attribute',
-          prefix: 'lib',
+          prefix: 'ngx',
           style: 'camelCase',
         },
       ],
@@ -19,10 +19,17 @@ module.exports = defineConfig([
         'error',
         {
           type: 'element',
-          prefix: 'lib',
+          prefix: 'ngx',
           style: 'kebab-case',
         },
       ],
+    },
+  },
+  {
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-empty-function': 'off',
     },
   },
   {

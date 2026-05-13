@@ -1,4 +1,4 @@
-import { Directive, ElementRef, Optional } from '@angular/core';
+import { Directive, ElementRef, inject } from '@angular/core';
 import { MatTable } from '@angular/material/table';
 import { createXlsxBlob } from './_writers/xlsx-writer';
 import { createCsvBlob } from './_writers/csv-writer';
@@ -28,11 +28,9 @@ export type { ExportOptions };
   exportAs: 'ngxMatTableExporter',
   standalone: true,
 })
-export class NgxMatTableExporterDirective<T = any> {
-  constructor(
-    private readonly el: ElementRef<HTMLElement>,
-    @Optional() private readonly table: MatTable<T> | null,
-  ) {}
+export class NgxMatTableExporterDirective<T = unknown> {
+  private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
+  private readonly table = inject<MatTable<T> | null>(MatTable, { optional: true });
 
   /**
    * Exports the rows currently rendered in the DOM.
@@ -75,8 +73,8 @@ export class NgxMatTableExporterDirective<T = any> {
     const rows: (string | number)[][] = [
       columns.map(c => c.header),
       ...data.map(row => columns.map(c => {
-        const val = (row as any)[c.key];
-        return val !== null && val !== undefined ? val : '';
+        const val = (row as Record<string, unknown>)[c.key];
+        return val !== null && val !== undefined ? val as string | number : '';
       })),
     ];
 
@@ -93,6 +91,7 @@ export class NgxMatTableExporterDirective<T = any> {
     }
 
     if (ds !== null && typeof ds === 'object') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- duck-typing against MatTableDataSource internals to avoid a direct import
       const mds = ds as any;
 
       if (Array.isArray(mds['data'])) {

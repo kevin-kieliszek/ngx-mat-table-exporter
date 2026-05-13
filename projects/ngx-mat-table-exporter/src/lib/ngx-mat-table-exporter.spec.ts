@@ -236,6 +236,54 @@ describe('NgxMatTableExporterDirective — download format routing', () => {
 });
 
 // ---------------------------------------------------------------------------
+// ZIP helper — extracts uncompressed (STORE) entries by name
+// ---------------------------------------------------------------------------
+
+function readZipEntries(data: Uint8Array): Map<string, string> {
+  const view    = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const decoder = new TextDecoder();
+  const entries = new Map<string, string>();
+
+  // Locate EOCD signature (0x06054b50) scanning backwards from end
+  let eocdOffset = -1;
+  for (let i = data.length - 22; i >= 0; i--) {
+    if (view.getUint32(i, true) === 0x06054b50) { eocdOffset = i; break; }
+  }
+  if (eocdOffset === -1) throw new Error('EOCD not found');
+
+  const cdCount  = view.getUint16(eocdOffset + 8,  true);
+  const cdOffset = view.getUint32(eocdOffset + 16, true);
+
+  let pos = cdOffset;
+  for (let i = 0; i < cdCount; i++) {
+    if (view.getUint32(pos, true) !== 0x02014b50) throw new Error('Central dir sig mismatch');
+
+    const nameLen     = view.getUint16(pos + 28, true);
+    const extraLen    = view.getUint16(pos + 30, true);
+    const commentLen  = view.getUint16(pos + 32, true);
+    const localOffset = view.getUint32(pos + 42, true);
+    const name        = decoder.decode(data.slice(pos + 46, pos + 46 + nameLen));
+
+    pos += 46 + nameLen + extraLen + commentLen;
+
+    if (view.getUint32(localOffset, true) !== 0x04034b50) throw new Error('Local file sig mismatch');
+
+    const localNameLen  = view.getUint16(localOffset + 26, true);
+    const localExtraLen = view.getUint16(localOffset + 28, true);
+    const compSize      = view.getUint32(localOffset + 18, true);
+    const dataStart     = localOffset + 30 + localNameLen + localExtraLen;
+
+    entries.set(name, decoder.decode(data.slice(dataStart, dataStart + compSize)));
+  }
+
+  return entries;
+}
+
+async function extractXml(blob: Blob): Promise<Map<string, string>> {
+  return readZipEntries(new Uint8Array(await blob.arrayBuffer()));
+}
+
+// ---------------------------------------------------------------------------
 // createXlsxBlob
 // ---------------------------------------------------------------------------
 
@@ -256,6 +304,115 @@ describe('createXlsxBlob', () => {
 
   it('handles mixed string/number cells without throwing', () => {
     expect(() => createXlsxBlob([['Label', 'Count'], ['items', 99]], 'Mix')).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createXlsxBlob — XML output
+// ---------------------------------------------------------------------------
+
+describe('createXlsxBlob — XML output', () => {
+  // Header + 3 data rows so we can test stripe on odd (ri=1,3) and even (ri=2)
+  const ROWS = [['Name', 'City'], ['Alice', 'New York'], ['Bob', 'Chicago'], ['Carol', 'Austin']];
+
+  it('omits styles.xml when no styling options are set', async () => {
+    const xml = await extractXml(createXlsxBlob(ROWS));
+    expect(xml.has('xl/styles.xml')).toBe(false);
+  });
+
+  it('does not apply cell style attributes when no styling options are set', async () => {
+    const xml = await extractXml(createXlsxBlob(ROWS));
+    expect(xml.get('xl/worksheets/sheet1.xml')).not.toContain(' s="');
+  });
+
+  it('writes the sheet name to workbook.xml', async () => {
+    const xml = await extractXml(createXlsxBlob(ROWS, 'My Report'));
+    expect(xml.get('xl/workbook.xml')).toContain('name="My Report"');
+  });
+
+  it('stores string cells with t="s" and numbers inline without t="s"', async () => {
+    const xml   = await extractXml(createXlsxBlob([['Label', 'Count'], ['items', 42]]));
+    const sheet = xml.get('xl/worksheets/sheet1.xml')!;
+    expect(sheet).toContain('t="s"');
+    expect(sheet).toContain('<c r="B2"><v>42</v></c>');
+  });
+
+  it('escapes special characters in sharedStrings.xml', async () => {
+    const xml = await extractXml(createXlsxBlob([['A & B'], ['<x> "y"']]));
+    const ss  = xml.get('xl/sharedStrings.xml')!;
+    expect(ss).toContain('A &amp; B');
+    expect(ss).toContain('&lt;x&gt; &quot;y&quot;');
+  });
+
+  it('writes auto-sized column widths with customWidth="1"', async () => {
+    // 'A very long column header' (25 chars) + padding 2 = 27
+    const xml   = await extractXml(createXlsxBlob([['A very long column header', 'B']]));
+    const sheet = xml.get('xl/worksheets/sheet1.xml')!;
+    expect(sheet).toContain('customWidth="1"');
+    expect(sheet).toContain('width="27"');
+  });
+
+  it('caps column width at 60', async () => {
+    const longHeader = 'A'.repeat(70); // 70 + 2 padding = 72 → capped at 60
+    const xml   = await extractXml(createXlsxBlob([[longHeader]]));
+    const sheet = xml.get('xl/worksheets/sheet1.xml')!;
+    expect(sheet).toContain('width="60"');
+    expect(sheet).not.toContain('width="72"');
+  });
+
+  it('includes styles.xml and writes the stripe fill colour when stripeColor is set', async () => {
+    const xml = await extractXml(createXlsxBlob(ROWS, 'Data', '#C6EFCE'));
+    expect(xml.has('xl/styles.xml')).toBe(true);
+    expect(xml.get('xl/styles.xml')).toContain('FFC6EFCE');
+  });
+
+  it('accepts stripeColor without a leading hash', async () => {
+    const xml = await extractXml(createXlsxBlob(ROWS, 'Data', 'C6EFCE'));
+    expect(xml.get('xl/styles.xml')).toContain('FFC6EFCE');
+  });
+
+  it('applies s="1" to odd data rows and omits it from even rows and the header', async () => {
+    const xml   = await extractXml(createXlsxBlob(ROWS, 'Data', '#C6EFCE'));
+    const sheet = xml.get('xl/worksheets/sheet1.xml')!;
+    expect(sheet).toContain('<c r="A1" t="s"><v>');       // header — no s
+    expect(sheet).toContain('<c r="A2" t="s" s="1"><v>'); // ri=1 odd  — s="1"
+    expect(sheet).toContain('<c r="A3" t="s"><v>');       // ri=2 even — no s
+    expect(sheet).toContain('<c r="A4" t="s" s="1"><v>'); // ri=3 odd  — s="1"
+  });
+
+  it('includes styles.xml with <b/> font tag when boldHeaders is true', async () => {
+    const xml = await extractXml(createXlsxBlob(ROWS, 'Data', undefined, true));
+    expect(xml.has('xl/styles.xml')).toBe(true);
+    expect(xml.get('xl/styles.xml')).toContain('<b/>');
+  });
+
+  it('applies s="2" to header cells when boldHeaders is true', async () => {
+    const xml   = await extractXml(createXlsxBlob(ROWS, 'Data', undefined, true));
+    const sheet = xml.get('xl/worksheets/sheet1.xml')!;
+    expect(sheet).toContain('<c r="A1" t="s" s="2"><v>'); // header — s="2"
+    expect(sheet).toContain('<c r="A2" t="s"><v>');       // data   — no s
+  });
+
+  it('includes a thin bottom border in styles.xml when bottomHeaderBorder is true', async () => {
+    const xml = await extractXml(createXlsxBlob(ROWS, 'Data', undefined, false, true));
+    expect(xml.get('xl/styles.xml')).toContain('bottom style="thin"');
+  });
+
+  it('applies s="2" to header cells when bottomHeaderBorder is true', async () => {
+    const xml   = await extractXml(createXlsxBlob(ROWS, 'Data', undefined, false, true));
+    const sheet = xml.get('xl/worksheets/sheet1.xml')!;
+    expect(sheet).toContain('<c r="A1" t="s" s="2"><v>');
+    expect(sheet).toContain('<c r="A2" t="s"><v>');
+  });
+
+  it('combines stripe and bold headers correctly', async () => {
+    const xml   = await extractXml(createXlsxBlob(ROWS, 'Data', '#C6EFCE', true));
+    const sheet = xml.get('xl/worksheets/sheet1.xml')!;
+    const styles = xml.get('xl/styles.xml')!;
+    expect(styles).toContain('<b/>');
+    expect(styles).toContain('FFC6EFCE');
+    expect(sheet).toContain('<c r="A1" t="s" s="2"><v>'); // header bold, no stripe
+    expect(sheet).toContain('<c r="A2" t="s" s="1"><v>'); // data stripe
   });
 });
 

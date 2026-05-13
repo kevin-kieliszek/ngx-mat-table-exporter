@@ -1,4 +1,5 @@
 import { Directive, ElementRef, inject } from '@angular/core';
+import { NGX_MAT_TABLE_EXPORTER_CONFIG } from './provide-ngx-mat-table-exporter';
 import { MatTable } from '@angular/material/table';
 import { createXlsxBlob } from './_writers/xlsx-writer';
 import { createCsvBlob } from './_writers/csv-writer';
@@ -31,6 +32,7 @@ export type { ExportOptions };
 export class NgxMatTableExporterDirective<T = unknown> {
   private readonly el = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly table = inject<MatTable<T> | null>(MatTable, { optional: true });
+  private readonly config = inject(NGX_MAT_TABLE_EXPORTER_CONFIG, { optional: true });
 
   /**
    * Exports the rows currently rendered in the DOM.
@@ -157,7 +159,13 @@ export class NgxMatTableExporterDirective<T = unknown> {
         ext  = 'json';
         break;
       default:
-        blob = createXlsxBlob(rows, options?.sheetName ?? 'Data');
+        blob = createXlsxBlob(
+          rows,
+          options?.sheetName ?? 'Data',
+          this.config?.stripeRows ? this.config.stripeColor : undefined,
+          this.config?.boldHeaders ?? false,
+          this.config?.bottomHeaderBorder ?? false,
+        );
         ext  = 'xlsx';
     }
 

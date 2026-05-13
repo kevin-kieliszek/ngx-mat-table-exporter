@@ -33,18 +33,7 @@ npm install ngx-mat-table-exporter
 
 ## Quick Start
 
-### 1. Add the directive to your template
-
-```html
-<mat-table [dataSource]="dataSource" ngxMatTableExporter #exporter="ngxMatTableExporter">
-  <!-- your columns -->
-</mat-table>
-
-<button (click)="exporter.exportCurrentPage()">Export Current Page</button>
-<button (click)="exporter.exportDataSource()">Export All Rows</button>
-```
-
-### 2. Import the directive
+### 1. Import the directive
 
 **Standalone component:**
 
@@ -75,7 +64,64 @@ import { NgModule } from '@angular/core';
 export class MyModule {}
 ```
 
-That's it. No additional setup or configuration required.
+### 2. Add the directive to your template
+
+```html
+<mat-table [dataSource]="dataSource" ngxMatTableExporter #exporter="ngxMatTableExporter">
+  <!-- your columns -->
+</mat-table>
+
+<button (click)="exporter.exportCurrentPage()">Export Current Page</button>
+<button (click)="exporter.exportDataSource()">Export All Rows</button>
+```
+
+That's it. No additional setup or configuration required for basic usage.
+
+### 3. (Optional) Set global xlsx defaults
+
+Only needed if you want to change the default xlsx styling. Without it, all styling is off and the directive works with no configuration required. Use `provideNgxMatTableExporter` to set defaults for every `ngxMatTableExporter` directive in the application.
+
+**Standalone (app.config.ts):**
+
+```typescript
+import { provideNgxMatTableExporter } from 'ngx-mat-table-exporter';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideNgxMatTableExporter({
+      stripeRows: true,
+      stripeColor: '#C6EFCE',
+      boldHeaders: true,
+      bottomHeaderBorder: true,
+    }),
+  ],
+};
+```
+
+**NgModule (app.module.ts):**
+
+```typescript
+import { provideNgxMatTableExporter } from 'ngx-mat-table-exporter';
+
+@NgModule({
+  providers: [
+    provideNgxMatTableExporter({
+      stripeRows: true,
+      stripeColor: '#C6EFCE',
+      boldHeaders: true,
+      bottomHeaderBorder: true,
+    }),
+  ],
+})
+export class AppModule {}
+```
+
+| Option | Type | Default | Description |
+|---|---|---|---|
+| `stripeRows` | `boolean` | `false` | Apply alternating row shading to xlsx exports |
+| `stripeColor` | `string` | `'#D9E8FB'` | Hex colour for the alternating row fill. Only used when `stripeRows` is `true` |
+| `boldHeaders` | `boolean` | `false` | Render the header row in bold |
+| `bottomHeaderBorder` | `boolean` | `false` | Apply a bottom border to header cells |
 
 ---
 

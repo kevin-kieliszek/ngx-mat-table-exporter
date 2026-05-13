@@ -9,6 +9,7 @@ import { NgxMatTableExporterDirective } from './ngx-mat-table-exporter.directive
 import { createXlsxBlob, columnAddress } from './_writers/xlsx-writer';
 import { createCsvBlob } from './_writers/csv-writer';
 import { createJsonBlob } from './_writers/json-writer';
+import { provideNgxMatTableExporter } from './provide-ngx-mat-table-exporter';
 
 // ---------------------------------------------------------------------------
 // Test data
@@ -329,6 +330,47 @@ describe('createJsonBlob', () => {
     const blob = createJsonBlob([['A', 'B'], ['only-a']]);
     const data = await parsed(blob) as Record<string, unknown>[];
     expect(data[0]['B']).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// provideNgxMatTableExporter — config injection
+// ---------------------------------------------------------------------------
+
+describe('NgxMatTableExporterDirective — provider config', () => {
+  it('directive receives all config values from provideNgxMatTableExporter', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DomHostComponent],
+      providers: [
+        provideNgxMatTableExporter({
+          stripeRows: true,
+          stripeColor: '#C6EFCE',
+          boldHeaders: true,
+          bottomHeaderBorder: true,
+        }),
+      ],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(DomHostComponent);
+    fixture.detectChanges();
+    const dir = getDir(fixture) as any;
+
+    expect(dir.config.stripeRows).toBe(true);
+    expect(dir.config.stripeColor).toBe('#C6EFCE');
+    expect(dir.config.boldHeaders).toBe(true);
+    expect(dir.config.bottomHeaderBorder).toBe(true);
+  });
+
+  it('directive config is null when no provider is registered', async () => {
+    await TestBed.configureTestingModule({
+      imports: [DomHostComponent],
+    }).compileComponents();
+
+    const fixture = TestBed.createComponent(DomHostComponent);
+    fixture.detectChanges();
+    const dir = getDir(fixture) as any;
+
+    expect(dir.config).toBeNull();
   });
 });
 

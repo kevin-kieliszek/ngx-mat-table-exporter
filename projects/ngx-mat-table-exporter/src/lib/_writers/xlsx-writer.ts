@@ -157,7 +157,10 @@ function buildZip(files: { name: string; data: Uint8Array }[]): Uint8Array {
 // XLSX XML builders
 // ---------------------------------------------------------------------------
 
-function buildContentTypes(): string {
+function buildContentTypes(includeStyles: boolean): string {
+  const stylesPart = includeStyles
+    ? '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>'
+    : '';
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">' +
@@ -166,6 +169,7 @@ function buildContentTypes(): string {
       '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>' +
       '<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>' +
       '<Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>' +
+      stylesPart +
     '</Types>'
   );
 }
@@ -193,7 +197,12 @@ function buildWorkbook(sheetName: string): string {
   );
 }
 
-function buildWorkbookRels(): string {
+function buildWorkbookRels(includeStyles: boolean): string {
+  const stylesRel = includeStyles
+    ? '<Relationship Id="rId3" ' +
+        'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" ' +
+        'Target="styles.xml"/>'
+    : '';
   return (
     '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
     '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' +
@@ -203,6 +212,7 @@ function buildWorkbookRels(): string {
       '<Relationship Id="rId2" ' +
         'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" ' +
         'Target="sharedStrings.xml"/>' +
+      stylesRel +
     '</Relationships>'
   );
 }
@@ -222,7 +232,7 @@ function colWidth(rows: (string | number)[][], colIndex: number): number {
   return Math.min(max, MAX_WIDTH);
 }
 
-function buildSheet(rows: (string | number)[][], ssMap: Map<string, number>): string {
+function buildSheet(rows: (string | number)[][], ssMap: Map<string, number>, stripeColor: string | null, boldHeaders: boolean, bottomHeaderBorder: boolean): string {
   // Determine number of columns
   const numCols = rows.reduce((m, r) => Math.max(m, r.length), 0);
 
@@ -243,14 +253,18 @@ function buildSheet(rows: (string | number)[][], ssMap: Map<string, number>): st
 
   for (let ri = 0; ri < rows.length; ri++) {
     const row = rows[ri];
+    // s="1" → stripe fill, s="2" → header style (bold and/or bottom border)
+    const s = ri === 0 && (boldHeaders || bottomHeaderBorder)
+      ? ' s="2"'
+      : stripeColor !== null && ri > 0 && ri % 2 === 1 ? ' s="1"' : '';
     xml += `<row r="${ri + 1}">`;
     for (let ci = 0; ci < row.length; ci++) {
       const cell  = row[ci];
       const addr  = columnAddress(ci) + (ri + 1);
       if (typeof cell === 'string') {
-        xml += `<c r="${addr}" t="s"><v>${ssMap.get(cell)}</v></c>`;
+        xml += `<c r="${addr}" t="s"${s}><v>${ssMap.get(cell)}</v></c>`;
       } else {
-        xml += `<c r="${addr}"><v>${cell}</v></c>`;
+        xml += `<c r="${addr}"${s}><v>${cell}</v></c>`;
       }
     }
     xml += '</row>';
@@ -258,6 +272,50 @@ function buildSheet(rows: (string | number)[][], ssMap: Map<string, number>): st
 
   xml += '</sheetData></worksheet>';
   return xml;
+}
+
+function buildStyles(stripeColor: string | null, boldHeaders: boolean, bottomHeaderBorder: boolean): string {
+  const stripeFill = stripeColor
+    ? `<fill><patternFill patternType="solid"><fgColor rgb="FF${stripeColor}"/><bgColor indexed="64"/></patternFill></fill>`
+    : '<fill><patternFill patternType="none"/></fill>';
+
+  const headerFontAttrs = boldHeaders ? '<b/>' : '';
+  const borderCount     = bottomHeaderBorder ? 2 : 1;
+  const borderDefs      = bottomHeaderBorder
+    ? '<border><left/><right/><top/><bottom/><diagonal/></border>' +
+      '<border><left/><right/><top/><bottom style="thin"/><diagonal/></border>'
+    : '<border><left/><right/><top/><bottom/><diagonal/></border>';
+
+  const headerBorderId    = bottomHeaderBorder ? 1 : 0;
+  const headerApplyBorder = bottomHeaderBorder ? ' applyBorder="1"' : '';
+  const headerApplyFont   = boldHeaders ? ' applyFont="1"' : '';
+
+  return (
+    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
+    '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
+      '<fonts count="2">' +
+        '<font><sz val="11"/><name val="Calibri"/></font>' +
+        `<font>${headerFontAttrs}<sz val="11"/><name val="Calibri"/></font>` +
+      '</fonts>' +
+      '<fills count="3">' +
+        '<fill><patternFill patternType="none"/></fill>' +
+        '<fill><patternFill patternType="gray125"/></fill>' +
+        stripeFill +
+      '</fills>' +
+      `<borders count="${borderCount}">${borderDefs}</borders>` +
+      '<cellStyleXfs count="1">' +
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="0"/>' +
+      '</cellStyleXfs>' +
+      '<cellXfs count="3">' +
+        '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>' +
+        '<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>' +
+        `<xf numFmtId="0" fontId="1" fillId="0" borderId="${headerBorderId}" xfId="0"${headerApplyFont}${headerApplyBorder}/>` +
+      '</cellXfs>' +
+      '<cellStyles count="1">' +
+        '<cellStyle name="Normal" xfId="0" builtinId="0"/>' +
+      '</cellStyles>' +
+    '</styleSheet>'
+  );
 }
 
 function buildSharedStrings(strings: string[]): string {
@@ -279,10 +337,21 @@ function buildSharedStrings(strings: string[]): string {
 
 /**
  * Converts a 2-D array of strings/numbers into a valid `.xlsx` Blob.
- * @param rows     Array of rows; first row is typically the header.
+ * @param rows       Array of rows; first row is typically the header.
  * @param sheetName  Name for the worksheet tab (default "Sheet1").
+ * @param stripeRows Pass `true` for a default light-blue alternating row fill,
+ *                   or a hex colour string (e.g. `'#C6EFCE'`).
  */
-export function createXlsxBlob(rows: (string | number)[][], sheetName = 'Sheet1'): Blob {
+export function createXlsxBlob(
+  rows: (string | number)[][],
+  sheetName = 'Sheet1',
+  stripeColor?: string,
+  boldHeaders = false,
+  bottomHeaderBorder = false,
+): Blob {
+  // Strip leading # from caller-supplied colour; null means no stripe
+  const resolvedStripe = stripeColor ? stripeColor.replace(/^#/, '') : null;
+
   // Build shared-strings index (strings only; numbers are stored inline)
   const ssArr: string[] = [];
   const ssMap = new Map<string, number>();
@@ -296,14 +365,20 @@ export function createXlsxBlob(rows: (string | number)[][], sheetName = 'Sheet1'
     }
   }
 
+  const needsStyles = resolvedStripe !== null || boldHeaders || bottomHeaderBorder;
+
   const files: { name: string; data: Uint8Array }[] = [
-    { name: '[Content_Types].xml',          data: utf8(buildContentTypes()) },
-    { name: '_rels/.rels',                  data: utf8(buildRootRels()) },
-    { name: 'xl/workbook.xml',              data: utf8(buildWorkbook(sheetName)) },
-    { name: 'xl/_rels/workbook.xml.rels',   data: utf8(buildWorkbookRels()) },
-    { name: 'xl/worksheets/sheet1.xml',     data: utf8(buildSheet(rows, ssMap)) },
-    { name: 'xl/sharedStrings.xml',         data: utf8(buildSharedStrings(ssArr)) },
+    { name: '[Content_Types].xml',        data: utf8(buildContentTypes(needsStyles)) },
+    { name: '_rels/.rels',                data: utf8(buildRootRels()) },
+    { name: 'xl/workbook.xml',            data: utf8(buildWorkbook(sheetName)) },
+    { name: 'xl/_rels/workbook.xml.rels', data: utf8(buildWorkbookRels(needsStyles)) },
+    { name: 'xl/worksheets/sheet1.xml',   data: utf8(buildSheet(rows, ssMap, resolvedStripe, boldHeaders, bottomHeaderBorder)) },
+    { name: 'xl/sharedStrings.xml',       data: utf8(buildSharedStrings(ssArr)) },
   ];
+
+  if (needsStyles) {
+    files.push({ name: 'xl/styles.xml', data: utf8(buildStyles(resolvedStripe, boldHeaders, bottomHeaderBorder)) });
+  }
 
   const zipBytes = buildZip(files);
   return new Blob(

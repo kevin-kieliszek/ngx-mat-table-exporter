@@ -4,7 +4,7 @@
 
 Export Angular Material tables to **Excel (.xlsx)**, **CSV**, or **JSON** with a single method call — no third-party libraries required.
 
-- Supports **Angular 19 and above**
+- Supports **Angular 20 and above**
 - Zero dependencies beyond `@angular/material`
 - Three output formats: **xlsx**, **csv**, and **json**
 - Respects active **filter**, **sort**, and **pagination**
@@ -18,8 +18,10 @@ Export Angular Material tables to **Excel (.xlsx)**, **CSV**, or **JSON** with a
 
 | Package | Version |
 |---|---|
-| `@angular/core` | `>=19.0.0` |
-| `@angular/material` | `>=19.0.0` |
+| `@angular/core` | `>=20.0.0` |
+| `@angular/material` | `>=20.0.0` |
+
+> **Note:** The peer dependency requires Angular 20, which is the version this library is built and tested against. It is expected to work on Angular 17 and above, but older versions are not officially supported.
 
 ---
 

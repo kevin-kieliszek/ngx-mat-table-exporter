@@ -1,0 +1,89 @@
+# ngx-mat-table-exporter
+
+An Angular directive that exports Angular Material (`mat-table`) tables to Excel (.xlsx), CSV, or JSON — with zero dependencies beyond `@angular/material`.
+
+## Key facts
+
+- **No third-party libraries.** No `xlsx`, `exceljs`, `file-saver`, or `jszip`. All writers are implemented from scratch in TypeScript.
+- **Requires Angular 20+** (expected to work on Angular 17+).
+- **Two export modes:** current page only (DOM scrape) or full data set (bypasses pagination).
+- **Respects filter and sort** when using `MatTableDataSource`.
+- **xlsx features:** auto-sized column widths, optional alternating row stripe color, optional bold headers, optional bottom header border.
+
+## Installation
+
+```bash
+npm install ngx-mat-table-exporter
+```
+
+## Basic usage
+
+```html
+<mat-table [dataSource]="dataSource" ngxMatTableExporter #exporter="ngxMatTableExporter">
+  <!-- columns -->
+</mat-table>
+<button (click)="exporter.exportCurrentPage()">Export page</button>
+<button (click)="exporter.exportDataSource()">Export all</button>
+```
+
+```typescript
+import { NgxMatTableExporterDirective } from 'ngx-mat-table-exporter';
+
+@Component({
+  standalone: true,
+  imports: [MatTableModule, NgxMatTableExporterDirective],
+})
+export class MyComponent {}
+```
+
+## Export methods
+
+- `exportCurrentPage(options?)` — exports the rows currently visible in the DOM (current page, active filter, active sort).
+- `exportDataSource(options?)` — exports all rows from the data source, bypassing pagination but respecting filter and sort.
+
+## ExportOptions
+
+```typescript
+interface ExportOptions {
+  format?:    'xlsx' | 'csv' | 'json'; // default: 'xlsx'
+  fileName?:  string;                  // default: 'ExportedData'
+  sheetName?: string;                  // xlsx only, default: 'Data'
+}
+```
+
+## Global configuration (optional)
+
+Use `provideNgxMatTableExporter` in root providers to set default xlsx styling for all directives in the app. All options default to `false`/off — calling without any config is equivalent to not calling it at all.
+
+```typescript
+import { provideNgxMatTableExporter } from 'ngx-mat-table-exporter';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    provideNgxMatTableExporter({
+      stripeRows: true,         // alternating row shading
+      stripeColor: '#D9E8FB',   // hex color for stripe fill
+      boldHeaders: true,        // bold header row
+      bottomHeaderBorder: true, // bottom border on header cells
+    }),
+  ],
+};
+```
+
+## Public API exports
+
+- `NgxMatTableExporterDirective` — the directive
+- `provideNgxMatTableExporter(config)` — global config provider
+- `NGX_MAT_TABLE_EXPORTER_CONFIG` — the injection token
+- `NgxMatTableExporterConfig` — config interface
+- `ExportOptions` — export options interface
+- `ExportFormat` — `'xlsx' | 'csv' | 'json'`
+- `createXlsxBlob(rows, sheetName?, stripeColor?, boldHeaders?, bottomHeaderBorder?)` — xlsx writer
+- `createCsvBlob(rows)` — csv writer
+- `createJsonBlob(rows)` — json writer
+
+## Links
+
+- npm: https://www.npmjs.com/package/ngx-mat-table-exporter
+- GitHub: https://github.com/kevin-kieliszek/ngx-mat-table-exporter
+- Live demo: https://kevin-kieliszek.github.io/ngx-mat-table-exporter/
